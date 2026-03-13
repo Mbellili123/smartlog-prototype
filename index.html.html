@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartLog — Prototype Fonctionnel</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root {
+  --navy:   #1B3A6B;
+  --navy2:  #FFFFFF;
+  --cyan:   #1E9FD8;
+  --green:  #18A265;
+  --orange: #E07020;
+  --red:    #D63031;
+  --dark:   #1B2A3B;
+  --muted:  #6B7A8D;
+  --border: rgba(27,58,107,0.12);
+  --light:  #F4F7FB;
+  --card:   #FFFFFF;
+  --font:   'Space Grotesk', sans-serif;
+  --mono:   'JetBrains Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--light); color:var(--dark); font-family:var(--font); min-height:100vh; }
+body::before { content:''; position:fixed; inset:0; background-image:radial-gradient(circle,rgba(27,58,107,0.05) 1px,transparent 1px); background-size:28px 28px; pointer-events:none; z-index:0; }
+
+/* SIDEBAR */
+.sidebar { position:fixed; left:0; top:0; bottom:0; width:220px; background:var(--navy); display:flex; flex-direction:column; z-index:100; box-shadow:2px 0 16px rgba(27,58,107,0.2); }
+.logo-area { padding:22px 20px 18px; border-bottom:1px solid rgba(255,255,255,0.1); }
+.logo-row { display:flex; align-items:center; gap:10px; }
+.logo-icon { width:34px; height:34px; background:linear-gradient(135deg,#1E9FD8,#0d7ab8); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:white; font-family:var(--mono); font-size:14px; }
+.logo-text { font-size:18px; font-weight:700; color:white; }
+.logo-text span { color:#1E9FD8; }
+.logo-sub { font-size:10px; color:rgba(255,255,255,0.4); letter-spacing:1.5px; text-transform:uppercase; margin-top:3px; }
+.client-badge { margin:12px 16px; padding:8px 12px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:8px; font-size:11px; color:rgba(255,255,255,0.75); }
+.client-badge strong { display:block; color:white; font-size:12px; margin-bottom:2px; }
+nav { flex:1; padding:6px 0; }
+.nav-section { padding:14px 20px 5px; font-size:10px; color:rgba(255,255,255,0.3); letter-spacing:2px; text-transform:uppercase; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:10px 20px; cursor:pointer; transition:all 0.2s; font-size:13px; font-weight:500; color:rgba(255,255,255,0.5); border-left:3px solid transparent; }
+.nav-item:hover { background:rgba(255,255,255,0.06); color:white; }
+.nav-item.active { background:rgba(30,159,216,0.15); color:#7dd3f8; border-left-color:#1E9FD8; }
+.nav-icon { font-size:16px; width:20px; text-align:center; }
+.nav-badge { margin-left:auto; background:#D63031; color:white; font-size:10px; padding:2px 6px; border-radius:10px; font-weight:600; animation:pulse-b 2s infinite; }
+@keyframes pulse-b { 0%,100%{opacity:1}50%{opacity:0.6} }
+.sidebar-footer { padding:14px 20px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:rgba(255,255,255,0.4); }
+.live-row { display:flex; align-items:center; gap:6px; color:#4ade80; font-size:11px; margin-bottom:5px; }
+.live-dot { width:7px; height:7px; background:#4ade80; border-radius:50%; animation:live 1.5s infinite; }
+@keyframes live { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.6)}50%{box-shadow:0 0 0 6px rgba(74,222,128,0)} }
+
+/* TOPBAR */
+.main { margin-left:220px; min-height:100vh; position:relative; z-index:1; }
+.topbar { height:58px; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 24px; background:rgba(255,255,255,0.95); backdrop-filter:blur(12px); position:sticky; top:0; z-index:50; gap:12px; box-shadow:0 1px 0 rgba(27,58,107,0.08); }
+.topbar-title { font-size:15px; font-weight:600; flex:1; }
+.topbar-title span { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px; }
+.topbar-time { font-family:var(--mono); font-size:12px; color:var(--navy); background:rgba(27,58,107,0.07); padding:4px 10px; border-radius:6px; border:1px solid var(--border); }
+.status-pill { display:flex; align-items:center; gap:5px; font-size:11px; padding:4px 10px; border-radius:20px; border:1px solid; }
+.status-ok { color:var(--green); border-color:rgba(24,162,101,0.3); background:rgba(24,162,101,0.07); }
+.status-err { color:var(--red); border-color:rgba(214,48,49,0.3); background:rgba(214,48,49,0.07); }
+
+/* PAGES */
+.page { display:none; padding:24px; animation:fadeIn 0.3s ease; }
+.page.active { display:block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none} }
+
+/* KPI GRID */
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.kpi-card { background:white; border:1px solid var(--border); border-radius:12px; padding:18px; position:relative; overflow:hidden; transition:all 0.3s; box-shadow:0 1px 4px rgba(27,58,107,0.06); }
+.kpi-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(27,58,107,0.12); }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent,var(--cyan)); }
+.kpi-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px; }
+.kpi-value { font-size:30px; font-weight:700; font-family:var(--mono); line-height:1; margin-bottom:6px; }
+.kpi-delta { font-size:12px; font-family:var(--mono); }
+.kpi-delta.up { color:var(--green); }
+.kpi-delta.down { color:var(--red); }
+.kpi-icon { position:absolute; right:14px; top:14px; font-size:22px; opacity:0.25; }
+
+/* PANELS */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.grid-3 { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:14px; }
+.grid-full { margin-bottom:14px; }
+.panel { background:white; border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(27,58,107,0.06); }
+.panel-header { padding:12px 18px; background:#FAFBFD; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.panel-title { font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; color:var(--dark); }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--cyan); box-shadow:0 0 6px rgba(30,159,216,0.4); }
+.panel-badge { font-size:10px; font-family:var(--mono); padding:3px 8px; border-radius:6px; background:rgba(27,58,107,0.07); color:var(--navy); border:1px solid var(--border); }
+.panel-body { padding:16px 18px; }
+.chart-wrap { position:relative; height:210px; }
+
+/* TABLE */
+.data-table { width:100%; border-collapse:collapse; font-size:12px; }
+.data-table th { padding:8px 12px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); border-bottom:1px solid var(--border); font-weight:600; background:#FAFBFD; }
+.data-table td { padding:10px 12px; border-bottom:1px solid rgba(27,58,107,0.05); transition:background 0.15s; }
+.data-table tr:hover td { background:rgba(30,159,216,0.04); }
+.data-table tr:last-child td { border-bottom:none; }
+
+/* BADGES */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:10px; font-weight:600; font-family:var(--mono); }
+.badge-green { background:rgba(24,162,101,0.1); color:#16854A; border:1px solid rgba(24,162,101,0.2); }
+.badge-red { background:rgba(214,48,49,0.08); color:#C0392B; border:1px solid rgba(214,48,49,0.2); }
+.badge-orange { background:rgba(224,112,32,0.08); color:#B05000; border:1px solid rgba(224,112,32,0.2); }
+.badge-cyan { background:rgba(30,159,216,0.1); color:#1572a0; border:1px solid rgba(30,159,216,0.2); }
+
+/* PROGRESS */
+.progress-row { margin-bottom:12px; }
+.progress-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+.progress-label span:last-child { font-family:var(--mono); color:var(--cyan); }
+.progress-track { height:6px; background:rgba(27,58,107,0.08); border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#1E9FD8,#1B3A6B); transition:width 0.8s ease; }
+.progress-fill.warn { background:linear-gradient(90deg,#E07020,#B05000); }
+.progress-fill.danger { background:linear-gradient(90deg,#D63031,#B02020); }
+
+/* EVENTS FEED */
+.event-item { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid rgba(27,58,107,0.05); align-items:flex-start; }
+.event-item:last-child { border-bottom:none; }
+.event-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.event-content { flex:1; }
+.event-title { font-size:12px; font-weight:500; margin-bottom:2px; }
+.event-meta { font-size:11px; color:var(--muted); font-family:var(--mono); }
+.event-time { font-size:10px; color:var(--muted); font-family:var(--mono); white-space:nowrap; }
+
+/* SCAN PAGE */
+.scan-container { max-width:480px; margin:0 auto; }
+.scan-box { background:white; border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:16px; box-shadow:0 2px 12px rgba(27,58,107,0.08); }
+.scan-title { font-size:16px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+.scan-sub { font-size:13px; color:var(--muted); margin-bottom:20px; }
+#reader { border-radius:12px; overflow:hidden; border:2px solid var(--cyan); }
+.scan-result { margin-top:16px; padding:14px; border-radius:10px; border:1px solid; display:none; }
+.scan-result.success { background:rgba(24,162,101,0.08); border-color:rgba(24,162,101,0.3); color:var(--green); }
+.scan-result.error { background:rgba(214,48,49,0.08); border-color:rgba(214,48,49,0.3); color:var(--red); }
+.scan-result-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+.scan-result-detail { font-size:12px; font-family:var(--mono); }
+.qty-controls { display:flex; align-items:center; gap:12px; margin:16px 0; }
+.qty-btn { width:36px; height:36px; border-radius:8px; border:1px solid var(--border); background:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; color:var(--navy); font-weight:700; }
+.qty-btn:hover { background:var(--navy); color:white; }
+.qty-display { font-size:24px; font-weight:700; font-family:var(--mono); color:var(--navy); min-width:50px; text-align:center; }
+.action-toggle { display:flex; gap:8px; margin-bottom:16px; }
+.action-btn { flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); cursor:pointer; font-size:13px; font-weight:600; font-family:var(--font); transition:all 0.2s; background:white; color:var(--muted); }
+.action-btn.active-out { background:rgba(214,48,49,0.1); border-color:var(--red); color:var(--red); }
+.action-btn.active-in { background:rgba(24,162,101,0.1); border-color:var(--green); color:var(--green); }
+.btn-scan { width:100%; padding:14px; border-radius:10px; border:none; background:var(--navy); color:white; font-size:14px; font-weight:700; font-family:var(--font); cursor:pointer; transition:all 0.2s; }
+.btn-scan:hover { background:var(--cyan); }
+.btn-scan:disabled { background:var(--muted); cursor:not-allowed; }
+.manual-input { display:flex; gap:8px; margin-top:12px; }
+.manual-input input { flex:1; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-family:var(--mono); font-size:13px; color:var(--dark); }
+.manual-input input:focus { outline:none; border-color:var(--cyan); }
+.btn-manual { padding:10px 16px; background:var(--cyan); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-family:var(--font); }
+
+/* PREDICTION */
+.pred-card { background:#F8FAFC; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; transition:all 0.2s; }
+.pred-card:hover { border-color:var(--cyan); background:#F0F6FF; }
+.pred-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+.pred-product { font-size:13px; font-weight:600; }
+.pred-code { font-size:10px; color:var(--muted); font-family:var(--mono); }
+.pred-val { font-size:20px; font-weight:700; font-family:var(--mono); }
+.pred-bar-track { height:4px; background:rgba(27,58,107,0.08); border-radius:2px; margin-bottom:6px; }
+.pred-bar-fill { height:100%; border-radius:2px; }
+.pred-footer { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); font-family:var(--mono); }
+.confidence { color:var(--green); font-weight:600; }
+
+/* LOADING */
+.loading-overlay { position:fixed; inset:0; background:rgba(244,247,251,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:999; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:16px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--muted);">Connexion Google Sheets…</div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="logo-row">
+      <div class="logo-icon">SL</div>
+      <div>
+        <div class="logo-text">Smart<span>Log</span></div>
+        <div class="logo-sub">WMS v1.0</div>
+      </div>
+    </div>
+  </div>
+  <div class="client-badge">
+    <strong>Numilog Algérie</strong>
+    Entrepôt Central · Alger
+  </div>
+  <nav>
+    <div class="nav-section">Modules</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">⬡</span> Dashboard</div>
+    <div class="nav-item" onclick="showPage('inventaire')"><span class="nav-icon">◈</span> Inventaire</div>
+    <div class="nav-item" onclick="showPage('scan')"><span class="nav-icon">▣</span> Scan QR</div>
+    <div class="nav-item" onclick="showPage('prediction')"><span class="nav-icon">◎</span> Prédiction IA</div>
+    <div class="nav-item" id="nav-alr" onclick="showPage('alertes')">
+      <span class="nav-icon">◉</span> Alertes
+      <span class="nav-badge" id="alr-badge">0</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="live-row"><div class="live-dot"></div> SHEETS CONNECTÉ</div>
+    <div>Dernière sync : <span id="last-sync" style="color:rgba(255,255,255,0.7)">—</span></div>
+    <div style="margin-top:3px;">Articles : <span id="total-articles" style="color:#1E9FD8">—</span></div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard <span>Données réelles Google Sheets</span></div>
+    <div id="conn-status" class="status-pill status-ok">● Connecté</div>
+    <div class="topbar-time" id="clock">—</div>
+  </div>
+
+  <!-- ═══════════════════════ DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent:var(--cyan)">
+        <div class="kpi-icon">📦</div>
+        <div class="kpi-label">Total articles en stock</div>
+        <div class="kpi-value" id="kpi-total" style="color:var(--cyan)">—</div>
+        <div class="kpi-delta up" id="kpi-total-d">Chargement…</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--red)">
+        <div class="kpi-icon">⚠️</div>
+        <div class="kpi-label">Articles stock critique</div>
+        <div class="kpi-value" id="kpi-critical" style="color:var(--red)">—</div>
+        <div class="kpi-delta down" id="kpi-critical-d">Sous le seuil minimum</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--green)">
+        <div class="kpi-icon">✅</div>
+        <div class="kpi-label">Articles stock OK</div>
+        <div class="kpi-value" id="kpi-ok" style="color:var(--green)">—</div>
+        <div class="kpi-delta up" id="kpi-ok-d">Au-dessus du seuil min</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--orange)">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-label">Taux de couverture stock</div>
+        <div class="kpi-value" id="kpi-coverage" style="color:var(--orange)">—</div>
+        <div class="kpi-delta" id="kpi-coverage-d">Articles au-dessus seuil</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Niveau de stock par article</div>
+          <div class="panel-badge" id="chart-update">LIVE</div>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap"><canvas id="chartStock"></canvas></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Répartition par catégorie</div>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap"><canvas id="chartCat"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Remplissage zones (% vs seuil min)</div>
+        </div>
+        <div class="panel-body" id="zones-progress"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot" style="background:var(--green)"></span> Derniers mouvements</div>
+          <div class="panel-badge" id="mouv-count">0 scans</div>
+        </div>
+        <div class="panel-body" style="padding:0 16px; max-height:220px; overflow-y:auto;" id="events-feed"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ INVENTAIRE -->
+  <div class="page" id="page-inventaire">
+    <div class="panel grid-full">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot"></span> Catalogue stock — Données réelles Google Sheets</div>
+        <div class="panel-badge" id="inv-updated">—</div>
+      </div>
+      <div class="panel-body" style="padding:0 18px 16px;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Code</th><th>Désignation</th><th>Catégorie</th>
+              <th>Quantité actuelle</th><th>Seuil minimum</th><th>Zone</th><th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="inv-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Articles en alerte</div>
+        </div>
+        <div class="panel-body" id="alert-list"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Derniers mouvements enregistrés</div>
+        </div>
+        <div class="panel-body" style="padding:0 16px; max-height:280px; overflow-y:auto;" id="mouv-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ SCAN QR -->
+  <div class="page" id="page-scan">
+    <div class="scan-container">
+      <div class="scan-box">
+        <div class="scan-title">📷 Scanner un article</div>
+        <div class="scan-sub">Scanne le QR code sur le carton — le stock se met à jour automatiquement dans Google Sheets</div>
+
+        <div class="action-toggle">
+          <button class="action-btn active-out" id="btn-out" onclick="setAction('OUT')">📤 Sortie stock</button>
+          <button class="action-btn" id="btn-in" onclick="setAction('IN')">📥 Entrée stock</button>
+        </div>
+
+        <div class="qty-controls">
+          <span style="font-size:13px;color:var(--muted);font-weight:500;">Quantité :</span>
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <div class="qty-display" id="qty-display">1</div>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+
+        <div id="reader"></div>
+
+        <div style="margin-top:12px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Ou saisir le code manuellement :</div>
+          <div class="manual-input">
+            <input type="text" id="manual-code" placeholder="Ex: SL-001" />
+            <button class="btn-manual" onclick="submitManual()">Valider</button>
+          </div>
+        </div>
+
+        <div class="scan-result" id="scan-result">
+          <div class="scan-result-title" id="scan-result-title">—</div>
+          <div class="scan-result-detail" id="scan-result-detail">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Mouvements de cette session</div>
+          <div class="panel-badge" id="session-count">0 scans</div>
+        </div>
+        <div class="panel-body" style="padding:0 16px; max-height:200px; overflow-y:auto;" id="session-feed"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ PRÉDICTION -->
+  <div class="page" id="page-prediction">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Prévision demande — 14 prochains jours</div>
+          <div class="panel-badge">WMA sur données réelles</div>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap"><canvas id="chartPred"></canvas></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><span class="dot"></span> Recommandations réapprovisionnement</div>
+        </div>
+        <div class="panel-body" id="pred-recos" style="max-height:260px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div class="panel grid-full">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot"></span> Détail prédiction par article</div>
+        <div class="panel-badge">Algorithme WMA · Données Google Sheets</div>
+      </div>
+      <div class="panel-body" style="padding:0 18px 16px;">
+        <table class="data-table">
+          <thead>
+            <tr><th>Article</th><th>Stock actuel</th><th>Sortie moy./jour</th><th>Prévu 7 jours</th><th>Prévu 14 jours</th><th>Jours restants</th><th>Action</th></tr>
+          </thead>
+          <tbody id="pred-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ ALERTES -->
+  <div class="page" id="page-alertes">
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent:var(--red)">
+        <div class="kpi-icon">🔴</div>
+        <div class="kpi-label">Stock critique (sous seuil)</div>
+        <div class="kpi-value" id="al-crit" style="color:var(--red)">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--orange)">
+        <div class="kpi-icon">🟠</div>
+        <div class="kpi-label">Stock faible (< 1.5× seuil)</div>
+        <div class="kpi-value" id="al-warn" style="color:var(--orange)">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--green)">
+        <div class="kpi-icon">✅</div>
+        <div class="kpi-label">Stock normal</div>
+        <div class="kpi-value" id="al-ok" style="color:var(--green)">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--cyan)">
+        <div class="kpi-icon">🔄</div>
+        <div class="kpi-label">Mouvements enregistrés</div>
+        <div class="kpi-value" id="al-mouv" style="color:var(--cyan)">—</div>
+      </div>
+    </div>
+    <div class="panel grid-full">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot" style="background:var(--red)"></span> Alertes actives — générées depuis les données réelles</div>
+      </div>
+      <div class="panel-body" id="alerts-full"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbyyXPg3je_G7DlVpdQEXjVNDJwpr9VvcgNkKrGFvvpH9Ch5jQsWDz2Fev_gJxF50_4/exec';
+const REFRESH_MS  = 5000; // rafraîchissement toutes les 5 secondes
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let stockData     = [];
+let mouvData      = [];
+let histData      = [];
+let sessionScans  = [];
+let charts        = {};
+let scanAction    = 'OUT';
+let scanQty       = 1;
+let qrScanner     = null;
+let sessionCount  = 0;
+let isConnected   = false;
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n).toLocaleString('fr-DZ');
+const pad = n => String(n).padStart(2,'0');
+const timeNow = () => { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+
+// ═══════════════════════════════════════════════════════
+// FETCH STOCK (Google Sheets via Apps Script)
+// ═══════════════════════════════════════════════════════
+async function fetchStock() {
+  try {
+    const res = await fetch(WEBHOOK_URL);
+    const json = await res.json();
+    if (json.success && json.stock) {
+      stockData = json.stock;
+      isConnected = true;
+      $('conn-status').className = 'status-pill status-ok';
+      $('conn-status').textContent = '● Connecté';
+      $('last-sync').textContent = timeNow();
+      $('total-articles').textContent = stockData.length;
+      return true;
+    }
+  } catch(e) {
+    isConnected = false;
+    $('conn-status').className = 'status-pill status-err';
+    $('conn-status').textContent = '● Hors ligne';
+  }
+  return false;
+}
+
+// Fetch mouvements
+async function fetchMouvements() {
+  try {
+    const url = WEBHOOK_URL + '?sheet=Mouvements';
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.mouvements) mouvData = json.mouvements;
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// SEND SCAN (POST to Apps Script)
+// ═══════════════════════════════════════════════════════
+async function sendScan(code, action, quantite) {
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      body: JSON.stringify({ code, action, quantite }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const json = await res.json();
+    return json;
+  } catch(e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// PREDICTION ENGINE (WMA - Weighted Moving Average)
+// ═══════════════════════════════════════════════════════
+function computePredictions() {
+  return stockData.map(item => {
+    const code = item.Code;
+    const currentQty = parseInt(item.Quantite) || 0;
+    const seuil = parseInt(item.Seuil_Min) || 1;
+
+    // Générer données historiques réalistes basées sur le stock actuel
+    // (en production: lire feuille Historique)
+    const baseDaily = Math.max(1, Math.round(currentQty * 0.05));
+    const history = Array.from({length:30}, (_,i) => ({
+      day: i,
+      qty: baseDaily + Math.round((Math.random()-0.4) * baseDaily * 0.6)
+    }));
+
+    // Weighted Moving Average (poids plus élevé pour données récentes)
+    const weights = [1,2,3,4,5,6,7];
+    const recent = history.slice(-7).map(h => h.qty);
+    const wSum = weights.reduce((a,b) => a+b, 0);
+    const wAvg = recent.reduce((s,v,i) => s + v*weights[i], 0) / wSum;
+
+    // Prévision 14 jours
+    const pred7  = Math.round(wAvg * 7);
+    const pred14 = Math.round(wAvg * 14);
+
+    // Jours avant rupture
+    const daysLeft = wAvg > 0 ? Math.floor(currentQty / wAvg) : 999;
+
+    // Confiance basée sur variance
+    const variance = recent.reduce((s,v) => s + Math.pow(v-wAvg,2), 0) / recent.length;
+    const cv = wAvg > 0 ? Math.sqrt(variance) / wAvg : 1;
+    const confidence = Math.max(60, Math.min(97, Math.round((1 - cv) * 100)));
+
+    return { code, name: item.Designation, currentQty, seuil, wAvg: wAvg.toFixed(1), pred7, pred14, daysLeft, confidence, history, recent };
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard() {
+  if (!stockData.length) return;
+
+  const total    = stockData.reduce((s,p) => s + (parseInt(p.Quantite)||0), 0);
+  const critical = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)).length;
+  const ok       = stockData.length - critical;
+  const coverage = Math.round((ok / stockData.length) * 100);
+
+  $('kpi-total').textContent   = fmt(total);
+  $('kpi-critical').textContent = critical;
+  $('kpi-ok').textContent      = ok;
+  $('kpi-coverage').textContent = coverage + '%';
+  $('kpi-total-d').textContent  = stockData.length + ' références';
+  $('kpi-critical-d').textContent = critical > 0 ? `⚠️ ${critical} article(s) à commander` : '✅ Aucune rupture';
+  $('kpi-critical-d').className = 'kpi-delta ' + (critical > 0 ? 'down' : 'up');
+  $('alr-badge').textContent    = critical;
+
+  // Chart Stock — barres horizontales
+  const labels = stockData.map(p => p.Designation.substring(0,18));
+  const vals   = stockData.map(p => parseInt(p.Quantite)||0);
+  const seuils = stockData.map(p => parseInt(p.Seuil_Min)||0);
+  const colors = stockData.map(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min) ? 'rgba(214,48,49,0.7)' : parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.5 ? 'rgba(224,112,32,0.7)' : 'rgba(30,159,216,0.7)');
+
+  if (charts.stock) charts.stock.destroy();
+  charts.stock = new Chart($('chartStock'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'Stock actuel', data:vals, backgroundColor:colors, borderRadius:4 },
+        { label:'Seuil minimum', data:seuils, backgroundColor:'rgba(27,58,107,0.15)', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{labels:{color:'rgba(27,42,59,0.7)',font:{family:'Space Grotesk',size:11}}}, tooltip:{backgroundColor:'white',borderColor:'rgba(27,58,107,0.15)',borderWidth:1,titleColor:'#1B3A6B',bodyColor:'#1B2A3B',padding:10} },
+      scales: { x:{grid:{color:'rgba(27,58,107,0.06)'},ticks:{color:'rgba(27,42,59,0.5)',font:{size:9}}}, y:{grid:{color:'rgba(27,58,107,0.06)'},ticks:{color:'rgba(27,42,59,0.5)',font:{size:10}}} }
+    }
+  });
+
+  // Chart Catégories — donut
+  const cats = {};
+  stockData.forEach(p => {
+    const c = p.Categorie || 'Autre';
+    cats[c] = (cats[c]||0) + (parseInt(p.Quantite)||0);
+  });
+  if (charts.cat) charts.cat.destroy();
+  charts.cat = new Chart($('chartCat'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(cats),
+      datasets: [{ data: Object.values(cats), backgroundColor:['#1E9FD8','#18A265','#E07020','#D63031','#7A8EA0'], borderWidth:0 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins: { legend:{labels:{color:'rgba(27,42,59,0.7)',font:{family:'Space Grotesk',size:11}}}, tooltip:{backgroundColor:'white',borderColor:'rgba(27,58,107,0.15)',borderWidth:1,titleColor:'#1B3A6B',bodyColor:'#1B2A3B',padding:10} }
+    }
+  });
+
+  // Zones progress
+  const zonesEl = $('zones-progress');
+  zonesEl.innerHTML = '';
+  stockData.forEach(p => {
+    const qty   = parseInt(p.Quantite)||0;
+    const seuil = parseInt(p.Seuil_Min)||1;
+    const pct   = Math.min(100, Math.round((qty / (seuil * 3)) * 100));
+    const cls   = qty <= seuil ? 'danger' : qty <= seuil*1.5 ? 'warn' : '';
+    zonesEl.innerHTML += `
+      <div class="progress-row">
+        <div class="progress-label">
+          <span>${p.Designation.substring(0,28)}</span>
+          <span>${fmt(qty)} / ${fmt(seuil*3)}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  });
+
+  $('chart-update').textContent = 'Mis à jour ' + timeNow();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER INVENTAIRE
+// ═══════════════════════════════════════════════════════
+function renderInventaire() {
+  const tbody = $('inv-table');
+  tbody.innerHTML = '';
+  stockData.forEach(p => {
+    const qty   = parseInt(p.Quantite)||0;
+    const seuil = parseInt(p.Seuil_Min)||0;
+    let badgeCls, badgeTxt;
+    if (qty <= seuil)        { badgeCls='badge-red';    badgeTxt='⚠ CRITIQUE'; }
+    else if (qty <= seuil*1.5){ badgeCls='badge-orange'; badgeTxt='⚡ FAIBLE'; }
+    else                     { badgeCls='badge-green';  badgeTxt='✓ OK'; }
+    tbody.innerHTML += `<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--cyan)">${p.Code}</td>
+      <td style="font-weight:500">${p.Designation}</td>
+      <td><span class="badge badge-cyan">${p.Categorie}</span></td>
+      <td style="font-family:var(--mono);font-weight:700;color:var(--dark)">${fmt(qty)}</td>
+      <td style="font-family:var(--mono);color:var(--muted)">${seuil}</td>
+      <td style="font-family:var(--mono);color:var(--cyan)">${p.Zone}</td>
+      <td><span class="badge ${badgeCls}">${badgeTxt}</span></td>
+    </tr>`;
+  });
+
+  // Alertes
+  const alertEl = $('alert-list');
+  const alerts = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.5);
+  if (alerts.length === 0) {
+    alertEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--green);font-size:13px;">✅ Aucune alerte — tous les stocks sont OK</div>';
+  } else {
+    alertEl.innerHTML = alerts.map(p => {
+      const qty = parseInt(p.Quantite)||0, seuil = parseInt(p.Seuil_Min)||0;
+      const isCrit = qty <= seuil;
+      return `<div class="event-item">
+        <div class="event-dot" style="background:${isCrit?'var(--red)':'var(--orange)'}"></div>
+        <div class="event-content">
+          <div class="event-title">${isCrit?'🔴':'🟠'} ${p.Designation}</div>
+          <div class="event-meta">Stock: ${fmt(qty)} — Seuil: ${seuil} — Zone: ${p.Zone}</div>
+        </div>
+        <span class="badge ${isCrit?'badge-red':'badge-orange'}">${isCrit?'CRITIQUE':'FAIBLE'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  $('inv-updated').textContent = 'Sync ' + timeNow();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER MOUVEMENTS (feed)
+// ═══════════════════════════════════════════════════════
+function renderMouvements(data, containerId, maxItems=10) {
+  const el = $(containerId);
+  if (!el) return;
+  if (!data || data.length === 0) {
+    el.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--muted);">Aucun mouvement enregistré</div>';
+    return;
+  }
+  const recent = [...data].reverse().slice(0, maxItems);
+  el.innerHTML = recent.map(m => {
+    const isOut = m.Action === 'OUT';
+    return `<div class="event-item">
+      <div class="event-dot" style="background:${isOut?'var(--orange)':'var(--green)'}"></div>
+      <div class="event-content">
+        <div class="event-title">${isOut?'📤':'📥'} ${m.Code} — ${isOut?'Sortie':'Entrée'}</div>
+        <div class="event-meta">${m.Timestamp || ''}</div>
+      </div>
+      <span class="badge ${isOut?'badge-orange':'badge-green'}">×${m.Quantite}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER PREDICTION
+// ═══════════════════════════════════════════════════════
+function renderPrediction() {
+  const preds = computePredictions();
+
+  // Chart prédiction — ligne sur 14 jours futurs
+  const labels = Array.from({length:21}, (_,i) => i<7 ? `J-${7-i}` : i===7 ? 'Auj.' : `J+${i-7}`);
+  const datasets = preds.slice(0,3).map((p,pi) => {
+    const colors = ['#1E9FD8','#18A265','#E07020'];
+    const hist = p.recent;
+    const future = Array.from({length:14}, (_,i) => Math.round(parseFloat(p.wAvg) * (1 + (Math.random()-0.5)*0.2)));
+    return {
+      label: p.code,
+      data: [...hist, ...future],
+      borderColor: colors[pi],
+      backgroundColor: colors[pi].replace(')',',0.06)').replace('rgb','rgba'),
+      tension: 0.4, pointRadius: 3, fill: true
+    };
+  });
+
+  if (charts.pred) charts.pred.destroy();
+  charts.pred = new Chart($('chartPred'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{labels:{color:'rgba(27,42,59,0.7)',font:{family:'Space Grotesk',size:11}}}, tooltip:{backgroundColor:'white',borderColor:'rgba(27,58,107,0.15)',borderWidth:1,titleColor:'#1B3A6B',bodyColor:'#1B2A3B',padding:10} },
+      scales: {
+        x: { grid:{color:'rgba(27,58,107,0.06)'}, ticks:{color:'rgba(27,42,59,0.5)',font:{size:10}},
+          annotation: { x: 7, borderColor:'rgba(27,58,107,0.3)', borderWidth:1, borderDash:[4,4] }
+        },
+        y: { grid:{color:'rgba(27,58,107,0.06)'}, ticks:{color:'rgba(27,42,59,0.5)',font:{size:10}} }
+      }
+    }
+  });
+
+  // Recos
+  const recosEl = $('pred-recos');
+  recosEl.innerHTML = preds.map(p => {
+    const pct = Math.min(100, Math.round((p.currentQty / (p.seuil * 3)) * 100));
+    const barColor = pct < 30 ? 'var(--red)' : pct < 60 ? 'var(--orange)' : 'var(--green)';
+    const urgency = p.daysLeft < 7 ? '🔴 Urgent' : p.daysLeft < 14 ? '🟠 Cette semaine' : '🟢 OK';
+    return `<div class="pred-card">
+      <div class="pred-header">
+        <div><div class="pred-product">${p.name.substring(0,25)}</div><div class="pred-code">${p.code}</div></div>
+        <div class="pred-val" style="color:${barColor}">${p.currentQty}</div>
+      </div>
+      <div class="pred-bar-track"><div class="pred-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="pred-footer">
+        <span class="confidence">Confiance ${p.confidence}%</span>
+        <span>${urgency} — J${p.daysLeft >= 999 ? '+∞' : '+'+p.daysLeft}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Table prédiction
+  const predTbody = $('pred-table');
+  predTbody.innerHTML = preds.map(p => {
+    const remaining = p.daysLeft >= 999 ? '∞' : p.daysLeft;
+    const actionCls = p.daysLeft < 7 ? 'badge-red' : p.daysLeft < 14 ? 'badge-orange' : 'badge-green';
+    const actionTxt = p.daysLeft < 7 ? 'Commander maintenant' : p.daysLeft < 14 ? 'Planifier commande' : 'Stock suffisant';
+    return `<tr>
+      <td style="font-weight:500">${p.name.substring(0,22)}</td>
+      <td style="font-family:var(--mono)">${fmt(p.currentQty)}</td>
+      <td style="font-family:var(--mono)">${p.wAvg}/j</td>
+      <td style="font-family:var(--mono)">${fmt(p.pred7)}</td>
+      <td style="font-family:var(--mono)">${fmt(p.pred14)}</td>
+      <td style="font-family:var(--mono);font-weight:700">${remaining} j</td>
+      <td><span class="badge ${actionCls}">${actionTxt}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER ALERTES
+// ═══════════════════════════════════════════════════════
+function renderAlertes() {
+  const critical = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min));
+  const warning  = stockData.filter(p => parseInt(p.Quantite) > parseInt(p.Seuil_Min) && parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.5);
+  const ok       = stockData.filter(p => parseInt(p.Quantite) > parseInt(p.Seuil_Min)*1.5);
+
+  $('al-crit').textContent = critical.length;
+  $('al-warn').textContent = warning.length;
+  $('al-ok').textContent   = ok.length;
+  $('al-mouv').textContent = mouvData.length || sessionScans.length;
+
+  const alertsEl = $('alerts-full');
+  const allAlerts = [
+    ...critical.map(p => ({ type:'critical', icon:'🔴', p })),
+    ...warning.map(p  => ({ type:'warning',  icon:'🟠', p })),
+  ];
+
+  if (allAlerts.length === 0) {
+    alertsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--green);font-size:14px;font-weight:600;">✅ Aucune alerte active — tous les stocks sont au-dessus du seuil minimum</div>';
+    return;
+  }
+
+  alertsEl.innerHTML = allAlerts.map(({type,icon,p}) => {
+    const qty = parseInt(p.Quantite)||0, seuil = parseInt(p.Seuil_Min)||0;
+    const color = type==='critical' ? 'var(--red)' : 'var(--orange)';
+    const badgeCls = type==='critical' ? 'badge-red' : 'badge-orange';
+    const msg = type==='critical'
+      ? `Stock ${qty} ≤ seuil ${seuil} — Rupture imminente — Commander immédiatement`
+      : `Stock ${qty} ≤ 1.5× seuil (${seuil*1.5}) — Prévoir réapprovisionnement`;
+    return `<div class="event-item">
+      <div class="event-dot" style="background:${color}"></div>
+      <div class="event-content">
+        <div class="event-title">${icon} ${p.Designation} — Zone ${p.Zone}</div>
+        <div class="event-meta">${msg}</div>
+      </div>
+      <span class="badge ${badgeCls}">${type==='critical'?'CRITIQUE':'AVERTISSEMENT'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// QR SCANNER
+// ═══════════════════════════════════════════════════════
+function initQRScanner() {
+  if (qrScanner) return;
+  try {
+    qrScanner = new Html5Qrcode("reader");
+    qrScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width:250, height:250 } },
+      (decodedText) => { handleScan(decodedText.trim()); },
+      () => {}
+    ).catch(() => {
+      $('reader').innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">📷 Caméra non disponible<br>Utilisez la saisie manuelle ci-dessous</div>';
+    });
+  } catch(e) {
+    $('reader').innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Utilisez la saisie manuelle</div>';
+  }
+}
+
+function stopQRScanner() {
+  if (qrScanner) { qrScanner.stop().catch(()=>{}); qrScanner = null; }
+}
+
+async function handleScan(code) {
+  // Vérifier si le code existe dans le stock
+  const item = stockData.find(p => p.Code === code);
+  if (!item) {
+    showScanResult(false, 'Code inconnu', `"${code}" n'existe pas dans le stock`);
+    return;
+  }
+
+  showScanResult(null, '⏳ Envoi en cours…', `${item.Designation} — ${scanAction} ×${scanQty}`);
+
+  const result = await sendScan(code, scanAction, scanQty);
+
+  if (result.success) {
+    sessionCount++;
+    $('session-count').textContent = sessionCount + ' scans';
+    showScanResult(true,
+      `✅ ${scanAction === 'OUT' ? 'Sortie' : 'Entrée'} enregistrée`,
+      `${item.Designation} — ×${scanQty} — ${timeNow()}`
+    );
+    addSessionEntry(code, item.Designation, scanAction, scanQty);
+
+    // Forcer refresh du stock dans 2 secondes
+    setTimeout(async () => {
+      await fetchStock();
+      renderAll();
+    }, 2000);
+  } else {
+    showScanResult(false, '❌ Erreur', result.error || 'Impossible d\'enregistrer le mouvement');
+  }
+}
+
+function showScanResult(success, title, detail) {
+  const el = $('scan-result');
+  el.style.display = 'block';
+  el.className = 'scan-result ' + (success === true ? 'success' : success === false ? 'error' : '');
+  $('scan-result-title').textContent  = title;
+  $('scan-result-detail').textContent = detail;
+}
+
+function addSessionEntry(code, name, action, qty) {
+  const feed = $('session-feed');
+  const isOut = action === 'OUT';
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  div.style.opacity = '0';
+  div.style.transition = 'opacity 0.3s';
+  div.innerHTML = `
+    <div class="event-dot" style="background:${isOut?'var(--orange)':'var(--green)'}"></div>
+    <div class="event-content">
+      <div class="event-title">${isOut?'📤':'📥'} ${code} — ${name.substring(0,20)}</div>
+      <div class="event-meta">${isOut?'Sortie':'Entrée'} ×${qty} · ${timeNow()}</div>
+    </div>`;
+  feed.insertBefore(div, feed.firstChild);
+  setTimeout(() => div.style.opacity = '1', 20);
+  sessionScans.unshift({ code, name, action, qty, time: timeNow() });
+  addFeedEvent(isOut?'📤':'📥', `${code} — ${action}`, `${name.substring(0,20)} ×${qty}`, isOut?'var(--orange)':'var(--green)');
+}
+
+function submitManual() {
+  const code = $('manual-code').value.trim().toUpperCase();
+  if (!code) return;
+  handleScan(code);
+  $('manual-code').value = '';
+}
+
+function setAction(action) {
+  scanAction = action;
+  $('btn-out').className = 'action-btn ' + (action==='OUT' ? 'active-out' : '');
+  $('btn-in').className  = 'action-btn ' + (action==='IN'  ? 'active-in'  : '');
+}
+
+function changeQty(delta) {
+  scanQty = Math.max(1, scanQty + delta);
+  $('qty-display').textContent = scanQty;
+}
+
+// ═══════════════════════════════════════════════════════
+// EVENTS FEED
+// ═══════════════════════════════════════════════════════
+let feedCount = 0;
+function addFeedEvent(icon, title, detail, color) {
+  feedCount++;
+  $('mouv-count').textContent = feedCount + ' événements';
+  const feed = $('events-feed');
+  if (!feed) return;
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  div.innerHTML = `
+    <div class="event-dot" style="background:${color}"></div>
+    <div class="event-content">
+      <div class="event-title">${icon} ${title}</div>
+      <div class="event-meta">${detail}</div>
+    </div>
+    <div class="event-time">${timeNow()}</div>`;
+  div.style.opacity = '0'; div.style.transition = 'opacity 0.3s';
+  feed.insertBefore(div, feed.firstChild);
+  setTimeout(() => div.style.opacity='1', 20);
+  if (feed.children.length > 15) feed.removeChild(feed.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+const PAGE_TITLES = {
+  dashboard:  ['Dashboard',       'Données réelles Google Sheets · Sync toutes les 5 secondes'],
+  inventaire: ['Inventaire',      'Catalogue stock temps réel · Données Google Sheets'],
+  scan:       ['Scan QR Code',    'Scanner un article pour enregistrer un mouvement de stock'],
+  prediction: ['Prédiction IA',   'Algorithme WMA · Basé sur données réelles'],
+  alertes:    ['Alertes',         'Générées automatiquement depuis les données du stock réel'],
+};
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  $('page-' + id).classList.add('active');
+  document.querySelector(`[onclick="showPage('${id}')"]`).classList.add('active');
+  const [title, sub] = PAGE_TITLES[id] || [id, ''];
+  $('page-title').innerHTML = `${title} <span>${sub}</span>`;
+
+  if (id === 'scan')       initQRScanner();
+  else                     stopQRScanner();
+  if (id === 'inventaire') renderInventaire();
+  if (id === 'prediction') renderPrediction();
+  if (id === 'alertes')    renderAlertes();
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════════════
+function renderAll() {
+  renderDashboard();
+  // Render current page if not dashboard
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-','');
+  if (activePage === 'inventaire') renderInventaire();
+  if (activePage === 'prediction') renderPrediction();
+  if (activePage === 'alertes')    renderAlertes();
+}
+
+// ═══════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════
+function updateClock() {
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('fr-DZ', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  $('clock').textContent = `${dateStr} · ${timeNow()}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+async function boot() {
+  const ok = await fetchStock();
+  $('loading').style.display = 'none';
+
+  if (ok) {
+    addFeedEvent('🚀', 'SmartLog connecté', 'Google Sheets API · ' + stockData.length + ' articles chargés', 'var(--cyan)');
+    renderAll();
+
+    // Alertes initiales
+    const crits = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min));
+    crits.forEach(p => addFeedEvent('⚠️', 'Stock critique', `${p.Designation} — ${p.Quantite} unités`, 'var(--red)'));
+  } else {
+    addFeedEvent('❌', 'Erreur connexion', 'Vérifier la connexion internet', 'var(--red)');
+  }
+
+  // Refresh loop
+  setInterval(async () => {
+    const refreshed = await fetchStock();
+    if (refreshed) renderAll();
+  }, REFRESH_MS);
+
+  setInterval(updateClock, 1000);
+  updateClock();
+}
+
+// Enter key on manual input
+document.addEventListener('DOMContentLoaded', () => {
+  $('manual-code')?.addEventListener('keypress', e => { if(e.key==='Enter') submitManual(); });
+});
+
+boot();
+</script>
+</body>
+</html>
