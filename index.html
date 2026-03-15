@@ -504,14 +504,21 @@ async function fetchMouvements() {
 // SEND SCAN (POST to Apps Script)
 // ═══════════════════════════════════════════════════════
 async function sendScan(code, action, quantite) {
-  try {
-    const url = WEBHOOK_URL + '?action=scan&code=' + encodeURIComponent(code) + '&mouv=' + action + '&quantite=' + quantite;
-    const res = await fetch(url);
-    const json = await res.json();
-    return json;
-  } catch(e) {
-    return { success: false, error: e.toString() };
-  }
+  return new Promise((resolve) => {
+    const callbackName = 'cb_' + Date.now();
+    const script = document.createElement('script');
+    window[callbackName] = function(json) {
+      document.head.removeChild(script);
+      delete window[callbackName];
+      resolve(json);
+    };
+    script.onerror = function() {
+      resolve({ success: false, error: 'Erreur réseau' });
+    };
+    script.src = WEBHOOK_URL + '?action=scan&code=' + encodeURIComponent(code) + '&mouv=' + action + '&quantite=' + quantite + '&callback=' + callbackName;
+    document.head.appendChild(script);
+  });
+}
 }
 }
 
