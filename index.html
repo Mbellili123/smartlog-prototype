@@ -469,10 +469,20 @@ const timeNow = () => { const d=new Date(); return `${pad(d.getHours())}:${pad(d
 // ═══════════════════════════════════════════════════════
 // FETCH STOCK (Google Sheets via Apps Script)
 // ═══════════════════════════════════════════════════════
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = 'cb_' + Math.random().toString(36).slice(2);
+    const s  = document.createElement('script');
+    window[cb] = data => { delete window[cb]; document.head.removeChild(s); resolve(data); };
+    s.onerror = () => { delete window[cb]; document.head.removeChild(s); reject(new Error('JSONP error')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(s);
+  });
+}
+
 async function fetchStock() {
   try {
-    const res = await fetch(WEBHOOK_URL);
-    const json = await res.json();
+    const json = await jsonp(WEBHOOK_URL);
     if (json.success && json.stock) {
       stockData = json.stock;
       isConnected = true;
@@ -493,9 +503,7 @@ async function fetchStock() {
 // Fetch mouvements
 async function fetchMouvements() {
   try {
-    const url = WEBHOOK_URL + '?sheet=Mouvements';
-    const res = await fetch(url);
-    const json = await res.json();
+    const json = await jsonp(WEBHOOK_URL + '?sheet=Mouvements');
     if (json.mouvements) mouvData = json.mouvements;
   } catch(e) {}
 }
@@ -506,8 +514,7 @@ async function fetchMouvements() {
 async function sendScan(code, action, quantite) {
   try {
     const url = WEBHOOK_URL + '?action=scan&code=' + encodeURIComponent(code) + '&mouv=' + action + '&quantite=' + quantite;
-    const res = await fetch(url);
-    const json = await res.json();
+    const json = await jsonp(url);
     return json;
   } catch(e) {
     return { success: false, error: e.toString() };
