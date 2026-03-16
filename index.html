@@ -172,7 +172,39 @@ nav { flex:1; padding:6px 0; }
 </style>
 </head>
 <body>
-
+  
+/* KPI AVANCÉS */
+.kpi-adv-section { margin-bottom:20px; }
+.kpi-adv-title {
+  font-size:11px; font-weight:600; color:var(--muted);
+  text-transform:uppercase; letter-spacing:2px;
+  margin-bottom:10px; display:flex; align-items:center; gap:8px;
+}
+.kpi-adv-title::before {
+  content:''; display:inline-block;
+  width:3px; height:14px; background:var(--cyan); border-radius:2px;
+}
+.kpi-adv-grid {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+.kpi-adv-card {
+  background:white; border:1px solid var(--border);
+  border-radius:10px; padding:14px 16px;
+  display:flex; align-items:center; gap:12px;
+  box-shadow:0 1px 4px rgba(27,58,107,0.05);
+  transition:all 0.2s;
+}
+.kpi-adv-card:hover { transform:translateY(-1px); box-shadow:0 3px 12px rgba(27,58,107,0.1); }
+.kpi-adv-icon {
+  width:38px; height:38px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px; flex-shrink:0;
+}
+.kpi-adv-info { flex:1; min-width:0; }
+.kpi-adv-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+.kpi-adv-value { font-size:18px; font-weight:700; font-family:var(--mono); line-height:1; margin-bottom:3px; }
+.kpi-adv-sub { font-size:10px; color:var(--muted); }
 <!-- LOADING -->
 <div class="loading-overlay" id="loading">
   <div class="spinner"></div>
@@ -249,7 +281,76 @@ nav { flex:1; padding:6px 0; }
         <div class="kpi-delta" id="kpi-coverage-d">Articles au-dessus seuil</div>
       </div>
     </div>
-
+<!-- KPIs AVANCÉS -->
+<div class="kpi-adv-section">
+  <div class="kpi-adv-title">Indicateurs avancés — Calculés en temps réel</div>
+  <div class="kpi-adv-grid">
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(30,159,216,0.1)">🔄</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Taux de rotation</div>
+        <div class="kpi-adv-value" id="kadv-rotation" style="color:var(--cyan)">—</div>
+        <div class="kpi-adv-sub" id="kadv-rotation-s">fois / mois</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(24,162,101,0.1)">💰</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Valeur totale stock</div>
+        <div class="kpi-adv-value" id="kadv-valeur" style="color:var(--green)">—</div>
+        <div class="kpi-adv-sub">DZD estimé</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(224,112,32,0.1)">📋</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Mouvements aujourd'hui</div>
+        <div class="kpi-adv-value" id="kadv-mouv" style="color:var(--orange)">—</div>
+        <div class="kpi-adv-sub" id="kadv-mouv-s">scans enregistrés</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(24,162,101,0.1)">🎯</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Précision RFID</div>
+        <div class="kpi-adv-value" id="kadv-precision" style="color:var(--green)">—</div>
+        <div class="kpi-adv-sub">taux de lecture</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(214,48,49,0.1)">🏭</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Coût de stockage</div>
+        <div class="kpi-adv-value" id="kadv-cout" style="color:var(--red)">—</div>
+        <div class="kpi-adv-sub">DZD / mois estimé</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(27,58,107,0.1)">📦</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Articles en surstock</div>
+        <div class="kpi-adv-value" id="kadv-surstock" style="color:var(--navy)">—</div>
+        <div class="kpi-adv-sub" id="kadv-surstock-s">au-dessus 3× seuil</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(188,140,255,0.1)">🛒</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Commandes en attente</div>
+        <div class="kpi-adv-value" id="kadv-commandes" style="color:#BC8CFF">—</div>
+        <div class="kpi-adv-sub">à valider</div>
+      </div>
+    </div>
+    <div class="kpi-adv-card">
+      <div class="kpi-adv-icon" style="background:rgba(30,159,216,0.1)">📊</div>
+      <div class="kpi-adv-info">
+        <div class="kpi-adv-label">Score santé stock</div>
+        <div class="kpi-adv-value" id="kadv-score" style="color:var(--cyan)">—</div>
+        <div class="kpi-adv-sub" id="kadv-score-s">/100</div>
+      </div>
+    </div>
+  </div>
+</div>
     <div class="grid-2">
       <div class="panel">
         <div class="panel-header">
@@ -643,8 +744,63 @@ function renderDashboard() {
   });
 
   $('chart-update').textContent = 'Mis à jour ' + timeNow();
+  renderKPIsAvances();
 }
+// ═══════════════════════════════════════════════════════
+// RENDER KPIs AVANCÉS
+// ═══════════════════════════════════════════════════════
+function renderKPIsAvances() {
+  if (!stockData.length) return;
 
+  // 1. Taux de rotation = mouvements / stock moyen
+  const totalStock = stockData.reduce((s,p) => s + (parseInt(p.Quantite)||0), 0);
+  const totalMouvements = mouvData.length || sessionScans.length;
+  const rotation = totalStock > 0 ? (totalMouvements / (totalStock / stockData.length)).toFixed(1) : '0.0';
+  document.getElementById('kadv-rotation').textContent = rotation + 'x';
+  document.getElementById('kadv-rotation-s').textContent = totalMouvements + ' mouvements total';
+
+  // 2. Valeur totale stock (prix unitaire estimé 500 DZD par défaut)
+  const PRIX_UNIT = 500;
+  const valeurTotal = totalStock * PRIX_UNIT;
+  document.getElementById('kadv-valeur').textContent = fmt(valeurTotal);
+
+  // 3. Mouvements aujourd'hui
+  const today = new Date().toLocaleDateString('fr-DZ');
+  const mouvAujourdhui = mouvData.filter(m => {
+    if (!m.Timestamp) return false;
+    return m.Timestamp.includes(new Date().toLocaleDateString('fr-FR').split('/').reverse().join('/').substring(0,5));
+  }).length || sessionScans.length;
+  document.getElementById('kadv-mouv').textContent = mouvAujourdhui;
+  document.getElementById('kadv-mouv-s').textContent = mouvAujourdhui > 0 ? 'scans enregistrés' : 'aucun mouvement';
+
+  // 4. Précision RFID (articles bien scannés vs total)
+  const articlesOK = stockData.filter(p => parseInt(p.Quantite) > 0).length;
+  const precision = stockData.length > 0 ? ((articlesOK / stockData.length) * 100).toFixed(1) + '%' : '—';
+  document.getElementById('kadv-precision').textContent = precision;
+
+  // 5. Coût de stockage estimé (2 DZD par unité par mois)
+  const COUT_UNIT = 2;
+  const coutStockage = totalStock * COUT_UNIT;
+  document.getElementById('kadv-cout').textContent = fmt(coutStockage);
+
+  // 6. Articles en surstock (quantité > 3× seuil min)
+  const surstock = stockData.filter(p => parseInt(p.Quantite) > parseInt(p.Seuil_Min) * 3).length;
+  document.getElementById('kadv-surstock').textContent = surstock;
+  document.getElementById('kadv-surstock-s').textContent = surstock > 0 ? surstock + ' article(s) à optimiser' : 'Aucun surstock';
+
+  // 7. Commandes en attente (simulé)
+  const commandesAttente = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min) * 1.2).length;
+  document.getElementById('kadv-commandes').textContent = commandesAttente;
+
+  // 8. Score santé stock global (0-100)
+  const critical = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)).length;
+  const warning  = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min) * 1.5).length;
+  const score = Math.max(0, Math.round(100 - (critical * 15) - (warning * 5) - (surstock * 3)));
+  const scoreColor = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--orange)' : 'var(--red)';
+  document.getElementById('kadv-score').textContent = score;
+  document.getElementById('kadv-score').style.color = scoreColor;
+  document.getElementById('kadv-score-s').textContent = score >= 80 ? '✅ Excellent' : score >= 60 ? '⚡ Moyen' : '⚠️ Critique';
+}
 // ═══════════════════════════════════════════════════════
 // RENDER INVENTAIRE
 // ═══════════════════════════════════════════════════════
