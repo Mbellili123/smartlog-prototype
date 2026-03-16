@@ -169,11 +169,7 @@ nav { flex:1; padding:6px 0; }
 ::-webkit-scrollbar { width:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
-</style>
-</head>
-<body>
-  
-/* KPI AVANCÉS */
+  /* KPI AVANCÉS */
 .kpi-adv-section { margin-bottom:20px; }
 .kpi-adv-title {
   font-size:11px; font-weight:600; color:var(--muted);
@@ -184,27 +180,24 @@ nav { flex:1; padding:6px 0; }
   content:''; display:inline-block;
   width:3px; height:14px; background:var(--cyan); border-radius:2px;
 }
-.kpi-adv-grid {
-  display:grid; grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
+.kpi-adv-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
 .kpi-adv-card {
   background:white; border:1px solid var(--border);
   border-radius:10px; padding:14px 16px;
   display:flex; align-items:center; gap:12px;
-  box-shadow:0 1px 4px rgba(27,58,107,0.05);
-  transition:all 0.2s;
+  box-shadow:0 1px 4px rgba(27,58,107,0.05); transition:all 0.2s;
 }
 .kpi-adv-card:hover { transform:translateY(-1px); box-shadow:0 3px 12px rgba(27,58,107,0.1); }
-.kpi-adv-icon {
-  width:38px; height:38px; border-radius:9px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:17px; flex-shrink:0;
-}
+.kpi-adv-icon { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
 .kpi-adv-info { flex:1; min-width:0; }
 .kpi-adv-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
 .kpi-adv-value { font-size:18px; font-weight:700; font-family:var(--mono); line-height:1; margin-bottom:3px; }
 .kpi-adv-sub { font-size:10px; color:var(--muted); }
+</style>
+</head>
+<body>
+  
+
 <!-- LOADING -->
 <div class="loading-overlay" id="loading">
   <div class="spinner"></div>
