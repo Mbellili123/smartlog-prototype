@@ -507,7 +507,13 @@ async function fetchMouvements() {
     if (json.mouvements) mouvData = json.mouvements;
   } catch(e) {}
 }
-
+async function fetchHistorique() {
+  try {
+    const json = await jsonp(WEBHOOK_URL + '?sheet=Historique');
+    if (json.historique) histData = json.historique;
+  } catch(e) {}
+}
+  
 // ═══════════════════════════════════════════════════════
 // SEND SCAN (POST to Apps Script)
 // ═══════════════════════════════════════════════════════
@@ -530,33 +536,41 @@ function computePredictions() {
     const currentQty = parseInt(item.Quantite) || 0;
     const seuil = parseInt(item.Seuil_Min) || 1;
 
-    // Générer données historiques réalistes basées sur le stock actuel
-    // (en production: lire feuille Historique)
-    const baseDaily = Math.max(1, Math.round(currentQty * 0.05));
-    const history = Array.from({length:30}, (_,i) => ({
-      day: i,
-      qty: baseDaily + Math.round((Math.random()-0.4) * baseDaily * 0.6)
-    }));
+    // Récupérer les vraies données historiques pour cet article
+    const itemHist = histData
+      .filter(h => String(h.code).trim().toUpperCase() === code.toUpperCase())
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Weighted Moving Average (poids plus élevé pour données récentes)
-    const weights = [1,2,3,4,5,6,7];
-    const recent = history.slice(-7).map(h => h.qty);
-    const wSum = weights.reduce((a,b) => a+b, 0);
-    const wAvg = recent.reduce((s,v,i) => s + v*weights[i], 0) / wSum;
+    let recent, wAvg;
 
-    // Prévision 14 jours
+    if (itemHist.length >= 7) {
+      // Utiliser les 30 derniers jours réels
+      recent = itemHist.slice(-30).map(h => h.quantite);
+      const last7 = recent.slice(-7);
+      const weights = [1, 2, 3, 4, 5, 6, 7];
+      const wSum = weights.reduce((a, b) => a + b, 0);
+      wAvg = last7.reduce((s, v, i) => s + v * weights[i], 0) / wSum;
+    } else if (itemHist.length > 0) {
+      // Moins de 7 jours — utiliser ce qu'on a
+      recent = itemHist.map(h => h.quantite);
+      wAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    } else {
+      // Aucun historique — estimation basée sur stock actuel
+      wAvg = Math.max(1, Math.round(currentQty * 0.05));
+      recent = Array(7).fill(wAvg);
+    }
+
     const pred7  = Math.round(wAvg * 7);
     const pred14 = Math.round(wAvg * 14);
-
-    // Jours avant rupture
     const daysLeft = wAvg > 0 ? Math.floor(currentQty / wAvg) : 999;
 
-    // Confiance basée sur variance
-    const variance = recent.reduce((s,v) => s + Math.pow(v-wAvg,2), 0) / recent.length;
-    const cv = wAvg > 0 ? Math.sqrt(variance) / wAvg : 1;
-    const confidence = Math.max(60, Math.min(97, Math.round((1 - cv) * 100)));
+    // Confiance basée sur la variance réelle
+    const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const variance = recent.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / recent.length;
+    const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
+    const confidence = Math.max(60, Math.min(97, Math.round((1 - cv * 0.8) * 100)));
 
-    return { code, name: item.Designation, currentQty, seuil, wAvg: wAvg.toFixed(1), pred7, pred14, daysLeft, confidence, history, recent };
+    return { code, name: item.Designation, currentQty, seuil, wAvg: wAvg.toFixed(1), pred7, pred14, daysLeft, confidence, history: itemHist, recent };
   });
 }
 
@@ -1008,18 +1022,30 @@ function updateClock() {
 // ═══════════════════════════════════════════════════════
 async function boot() {
   const ok = await fetchStock();
+  if (ok) {
+    await fetchHistorique();
+    await fetchMouvements();
+  }
   $('loading').style.display = 'none';
 
   if (ok) {
     addFeedEvent('🚀', 'SmartLog connecté', 'Google Sheets API · ' + stockData.length + ' articles chargés', 'var(--cyan)');
+    addFeedEvent('📊', 'Historique chargé', histData.length + ' lignes · Prédiction WMA activée', 'var(--green)');
     renderAll();
-
-    // Alertes initiales
     const crits = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min));
     crits.forEach(p => addFeedEvent('⚠️', 'Stock critique', `${p.Designation} — ${p.Quantite} unités`, 'var(--red)'));
   } else {
     addFeedEvent('❌', 'Erreur connexion', 'Vérifier la connexion internet', 'var(--red)');
   }
+
+  setInterval(async () => {
+    const refreshed = await fetchStock();
+    if (refreshed) renderAll();
+  }, REFRESH_MS);
+
+  setInterval(updateClock, 1000);
+  updateClock();
+}
 
   // Refresh loop
   setInterval(async () => {
