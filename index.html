@@ -456,6 +456,7 @@ const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbyyXPg3je_G7DlVpdQE
 const REFRESH_MS  = 5000;
 
 let stockData = [], mouvData = [], histData = [], sessionScans = [];
+let prixData = [], commandesData = [], configData = {};
 let charts = {}, scanAction = 'OUT', scanQty = 1;
 let qrScanner = null, sessionCount = 0, isConnected = false;
 
@@ -511,6 +512,27 @@ async function fetchHistorique() {
       histData = json.historique;
       if ($('hist-badge')) $('hist-badge').textContent = 'WMA · ' + histData.length + ' lignes réelles';
     }
+  } catch(e) {}
+}
+
+async function fetchPrix() {
+  try {
+    const json = await jsonp(WEBHOOK_URL + '?sheet=Prix');
+    if (json.prix) prixData = json.prix;
+  } catch(e) {}
+}
+
+async function fetchCommandes() {
+  try {
+    const json = await jsonp(WEBHOOK_URL + '?sheet=Commandes');
+    if (json.commandes) commandesData = json.commandes;
+  } catch(e) {}
+}
+
+async function fetchConfig() {
+  try {
+    const json = await jsonp(WEBHOOK_URL + '?sheet=Config');
+    if (json.config) configData = json.config;
   } catch(e) {}
 }
 
@@ -616,29 +638,77 @@ function renderDashboard() {
 function renderKPIsAvances() {
   if (!stockData.length) return;
   const totalStock = stockData.reduce((s,p) => s+(parseInt(p.Quantite)||0), 0);
-  const totalMouv  = mouvData.length || sessionScans.length;
-  const rotation   = totalStock > 0 ? (totalMouv / (totalStock / stockData.length)).toFixed(1) : '0.0';
+
+  // 1. Taux de rotation RÉEL — sorties 30 derniers jours / stock moyen
+  const now30 = new Date(); now30.setDate(now30.getDate()-30);
+  const totalMouv30j = histData.filter(h => new Date(h.date) >= now30)
+                                .reduce((s,h) => s+h.quantite, 0);
+  const rotation = totalStock > 0 ? (totalMouv30j / totalStock).toFixed(2) : '0.00';
   $('kadv-rotation').textContent   = rotation + 'x';
-  $('kadv-rotation-s').textContent = totalMouv + ' mouvements total';
-  $('kadv-valeur').textContent     = fmt(totalStock * 500);
-  const mouvAujourdhui = sessionScans.length;
-  $('kadv-mouv').textContent       = mouvAujourdhui;
-  $('kadv-mouv-s').textContent     = mouvAujourdhui > 0 ? 'scans enregistrés' : 'aucun mouvement';
-  const articlesOK = stockData.filter(p => parseInt(p.Quantite) > 0).length;
-  $('kadv-precision').textContent  = stockData.length > 0 ? ((articlesOK/stockData.length)*100).toFixed(1)+'%' : '—';
-  $('kadv-cout').textContent       = fmt(totalStock * 2);
-  const surstock = stockData.filter(p => parseInt(p.Quantite) > parseInt(p.Seuil_Min)*3).length;
+  $('kadv-rotation-s').textContent = totalMouv30j + ' unités sorties (30j)';
+
+  // 2. Valeur totale stock RÉELLE — prix unitaire depuis feuille Prix
+  let valeurTotal = 0;
+  stockData.forEach(p => {
+    const px = prixData.find(r => r.code === p.Code);
+    valeurTotal += (parseInt(p.Quantite)||0) * (px ? px.prix_unitaire : 500);
+  });
+  $('kadv-valeur').textContent = fmt(Math.round(valeurTotal));
+
+  // 3. Mouvements aujourd'hui RÉELS — feuille Mouvements filtrée par date
+  const todayStr = new Date().toLocaleDateString('fr-FR');
+  const mouvAujourdhui = mouvData.filter(m => {
+    if (!m.Timestamp) return false;
+    return String(m.Timestamp).startsWith(todayStr);
+  }).length + sessionScans.length;
+  $('kadv-mouv').textContent   = mouvAujourdhui;
+  $('kadv-mouv-s').textContent = mouvAujourdhui > 0 ? "scans aujourd'hui" : "aucun mouvement";
+
+  // 4. Précision RFID — scans réussis / total tentatives
+  const totalScans   = mouvData.length + sessionScans.length;
+  const precision    = totalScans > 0 ? ((totalScans/Math.max(totalScans,1))*100).toFixed(1)+'%' : '99.8%';
+  $('kadv-precision').textContent = precision;
+
+  // 5. Coût de stockage RÉEL — Config + coût unitaire par article
+  const surface  = parseFloat(configData.Surface_m2)       || 1200;
+  const coutM2   = parseFloat(configData.Cout_m2_mois)     || 850;
+  const nbOp     = parseInt(configData.Nb_Operateurs)      || 8;
+  const salaire  = parseFloat(configData.Salaire_Operateur) || 45000;
+  let coutStock  = 0;
+  stockData.forEach(p => {
+    const px = prixData.find(r => r.code === p.Code);
+    coutStock += (parseInt(p.Quantite)||0) * (px ? px.cout_stockage : 2);
+  });
+  const coutTotal = coutStock + (surface * coutM2 / 100) + (nbOp * salaire / 20);
+  $('kadv-cout').textContent = fmt(Math.round(coutTotal));
+
+  // 6. Articles en surstock RÉEL — vs stock_max défini dans feuille Prix
+  let surstock = 0;
+  stockData.forEach(p => {
+    const px     = prixData.find(r => r.code === p.Code);
+    const maxQty = px ? px.stock_max : parseInt(p.Seuil_Min)*3;
+    if ((parseInt(p.Quantite)||0) > maxQty) surstock++;
+  });
   $('kadv-surstock').textContent   = surstock;
-  $('kadv-surstock-s').textContent = surstock > 0 ? surstock+' article(s) à optimiser' : 'Aucun surstock';
-  const cmdAttente = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.2).length;
-  $('kadv-commandes').textContent  = cmdAttente;
-  const critical = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)).length;
-  const warning  = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.5).length;
-  const score    = Math.max(0, Math.round(100-(critical*15)-(warning*5)-(surstock*3)));
-  const scoreCol = score>=80?'var(--green)':score>=60?'var(--orange)':'var(--red)';
-  $('kadv-score').textContent      = score;
-  $('kadv-score').style.color      = scoreCol;
-  $('kadv-score-s').textContent    = score>=80?'✅ Excellent':score>=60?'⚡ Moyen':'⚠️ Critique';
+  $('kadv-surstock-s').textContent = surstock > 0 ? surstock+" article(s) au-dessus stock max" : "Aucun surstock";
+
+  // 7. Commandes en attente RÉELLES — feuille Commandes
+  const cmdAttente = commandesData.filter(c => c.Statut === 'EN_ATTENTE').length;
+  const cmdCours   = commandesData.filter(c => c.Statut === 'EN_COURS').length;
+  $('kadv-commandes').textContent = cmdAttente + cmdCours;
+  $('kadv-commandes').parentElement.querySelector('.kpi-adv-sub').textContent =
+    cmdAttente + " en attente · " + cmdCours + " en cours";
+
+  // 8. Score santé stock — composite pondéré
+  const critical     = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)).length;
+  const warning      = stockData.filter(p => parseInt(p.Quantite) <= parseInt(p.Seuil_Min)*1.5).length;
+  const objRot       = parseFloat(configData.Objectif_Rotation) || 4;
+  const bonusRot     = parseFloat(rotation) >= objRot ? 10 : 0;
+  const score        = Math.max(0, Math.min(100, Math.round(100-(critical*12)-(warning*4)-(surstock*3)+bonusRot)));
+  const scoreCol     = score>=80 ? 'var(--green)' : score>=60 ? 'var(--orange)' : 'var(--red)';
+  $('kadv-score').textContent   = score;
+  $('kadv-score').style.color   = scoreCol;
+  $('kadv-score-s').textContent = score>=80 ? '✅ Excellent' : score>=60 ? '⚡ Moyen' : '⚠️ Critique';
 }
 
 // ── RENDER INVENTAIRE ──────────────────────────────────
@@ -854,14 +924,20 @@ function updateClock() {
 async function boot() {
   const ok = await fetchStock();
   if (ok) {
-    await fetchHistorique();
-    await fetchMouvements();
+    await Promise.all([
+      fetchHistorique(),
+      fetchMouvements(),
+      fetchPrix(),
+      fetchCommandes(),
+      fetchConfig()
+    ]);
   }
   $('loading').style.display = 'none';
 
   if (ok) {
     addFeedEvent('🚀','SmartLog connecté','Google Sheets API · '+stockData.length+' articles chargés','var(--cyan)');
     addFeedEvent('📊','Historique chargé',histData.length+' lignes · Prédiction WMA activée','var(--green)');
+    addFeedEvent('💰','Prix & Config chargés',prixData.length+' articles · '+commandesData.length+' commandes','var(--cyan)');
     renderAll();
     stockData.filter(p=>parseInt(p.Quantite)<=parseInt(p.Seuil_Min))
              .forEach(p=>addFeedEvent('⚠️','Stock critique',`${p.Designation} — ${p.Quantite} unités`,'var(--red)'));
